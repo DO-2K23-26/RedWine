@@ -1,5 +1,23 @@
 # wine
 
+## Setup
+
+```bash
+pip install -r requirements.txt
+```
+
+## Run
+
+### For the app
+```bash
+streamlit run app.py
+```
+
+### For the notebook
+```bash
+jupyter notebook
+```
+
 For more information, read [Cortez et al., 2009].
 Input variables (based on physicochemical tests):
    1 - fixed acidity
