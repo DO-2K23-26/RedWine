@@ -10,7 +10,7 @@ pip install -r requirements.txt
 
 ### For the app
 ```bash
-streamlit run app.py
+streamlit run main.py
 ```
 
 ### For the notebook
