@@ -1,18 +1,19 @@
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score
+from sklearn.model_selection import train_test_split, RandomizedSearchCV, cross_val_score
 import streamlit as st
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import StandardScaler
 import seaborn as sns
+from sklearn.preprocessing import StandardScaler
 
 st.set_page_config(layout="centered")
 st.title("Analyse and Machine Learning on Red Wine Quality dataset")
 
 df = pd.read_csv('data/winequality-red.csv', sep=';')
-
+df = df.astype(float)
 st.subheader("Extract of the data")
 st.write(df.head())
 st.subheader("Number of data (rows, columns)")
@@ -63,10 +64,39 @@ st.pyplot(fig)
 
 # Machine learning
 
+#X_train, X_test, y_train, y_test = train_test_split(df[['alcohol', 'sulphates', 'citric acid']], df['quality'], test_size=0.2, random_state=42, stratify=df['quality'])
 
-X_test, X_train, y_test, y_train = train_test_split(df.drop('quality', axis=1), df['quality'], test_size=0.2, random_state=42)
-rf_model = RandomForestClassifier(n_estimators=1000, random_state=42)
+X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality'], axis=1), df['quality'], test_size=0.2, random_state=42, stratify=df['quality'])
+y_train = y_train.replace({3: 4})
+y_test = y_test.replace({3: 4})
+
+print(pd.Series(y_train).value_counts())
+
+rf_model = RandomForestClassifier(n_estimators=500, max_depth=20, min_samples_split=3, min_samples_leaf=1, class_weight='balanced', random_state=42)
+
+
 rf_model.fit(X_train, y_train)
+
+importances = rf_model.feature_importances_
+features = X_train.columns
+
+fig, ax = plt.subplots(figsize=(10,6))
+pd.Series(importances, index=features).sort_values(ascending=False).plot(kind="bar", ax=ax)
+ax.set_title("Importance des Features")
+
+# Afficher dans Streamlit
+st.pyplot(fig)
+
+y_pred = rf_model.predict(X_test)
+cm = confusion_matrix(y_test, y_pred)
+print(classification_report(y_test, y_pred))
+
+print("Balanced Accuracy :", balanced_accuracy_score(y_test, y_pred))
+# Meilleurs paramètres : {'n_estimators': 500, 'min_samples_split': 2, 'min_samples_leaf': 1, 'max_features': 'log2', 'max_depth': None}
+cv_scores = cross_val_score(rf_model, X_train, y_train, cv=5)
+
+print("Scores de validation croisée :", cv_scores)
+print("Score moyen :", cv_scores.mean())
 print("Score du modèle", rf_model.score(X_test, y_test))
 
 
