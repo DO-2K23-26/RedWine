@@ -1,13 +1,15 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score, brier_score_loss, log_loss
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, cross_val_score
-import streamlit as st
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
 import seaborn as sns
+import streamlit as st
+from sklearn.cluster import KMeans
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score, brier_score_loss, \
+    log_loss
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 st.set_page_config(layout="centered")
 st.title("Analyse and Machine Learning on Red Wine Quality dataset")
@@ -122,7 +124,8 @@ df_display["quality_cat"] = df_display["quality_cat"].replace(quality_labels)
 df_display["fixed_acidity_cat"] = df_display["fixed_acidity_cat"].replace(acidity_labels)
 
 fig, ax = plt.subplots(figsize=(8,5))
-sns.boxplot(x=df_display[col_to_plot], y=df_display[continuous_feature], palette="coolwarm", ax=ax)
+sns.boxplot(x=df_display[col_to_plot], y=df_display[continuous_feature], hue=df_display[col_to_plot],
+            palette="coolwarm", ax=ax, legend=False)
 ax.set_xlabel(col_to_plot.replace("_", " ").title())
 ax.set_ylabel(continuous_feature.replace("_", " ").title())
 ax.set_title(f"Boxplot of {continuous_feature.replace('_', ' ').title()} by {col_to_plot.replace('_', ' ').title()}")
@@ -133,7 +136,6 @@ st.markdown("---")
 st.subheader("🤖 Machine Learning - Random Forest Models")
 
 # Quality classification
-st.subheader("📊 Random Forest - Wine Quality")
 X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1), df['quality'],
                                                     test_size=0.2, random_state=42, stratify=df['quality'])
 y_train = y_train.replace({3: 4})
@@ -146,24 +148,15 @@ rf_model = RandomForestClassifier(n_estimators=500, max_depth=20, min_samples_sp
 
 rf_model.fit(X_train, y_train)
 
-# Feature importance
-importances = rf_model.feature_importances_
-features = X_train.columns
-fig, ax = plt.subplots(figsize=(10, 6))
-pd.Series(importances, index=features).sort_values(ascending=False).plot(kind="bar", ax=ax)
-ax.set_title("Importance of Features")
-st.pyplot(fig)
-
 # Model performance
-y_pred = rf_model.predict(X_test)
+y_pred_rf = rf_model.predict(X_test)
 y_test_str = y_test.replace(quality_labels)
-y_pred_str = pd.Series(y_pred).replace(quality_labels)
+y_pred_str = pd.Series(y_pred_rf).replace(quality_labels)
 
-st.markdown("---")
-st.subheader("📊 Model Performance for randomForest about quality")
+st.subheader("📊 Random Forest - Quality")
 st.write("**Classification Report:**")
 st.write(pd.DataFrame(classification_report(y_test_str, y_pred_str, output_dict=True)).transpose())
-st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred):.3f}")
+st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred_rf):.3f}")
 st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
 
 # Log Loss
@@ -184,11 +177,61 @@ st.write(f"**Brier Score:** {np.mean(brier_scores):.3f}")
 # Confusion matrix
 st.subheader("Confusion Matrix")
 fig, ax = plt.subplots(figsize=(6,6))
-sns.heatmap(confusion_matrix(y_test, y_pred), annot=True, cmap="Blues", fmt="d", xticklabels=sorted(y_test.unique()), yticklabels=sorted(y_test.unique()))
+sns.heatmap(confusion_matrix(y_test, y_pred_rf), annot=True, cmap="Blues", fmt="d", xticklabels=sorted(y_test.unique()), yticklabels=sorted(y_test.unique()))
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 st.pyplot(fig)
 
+### XGBoost Classifier
+X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1),
+                                                    df['quality'],
+                                                    test_size=0.2, random_state=42, stratify=df['quality'])
+
+class_mapping = {4: 0, 5: 1, 6: 2, 7: 3, 8: 4}
+y_train_mapped = y_train.replace(class_mapping)
+y_test_mapped = y_test.replace(class_mapping)
+
+st.markdown("---")
+st.subheader("🚀 XGBoost Classifier (Quality Prediction)")
+
+xgb_model = XGBClassifier(n_estimators=500, max_depth=4, learning_rate=0.2,
+                          objective="multi:softmax", num_class=len(class_mapping), random_state=42)
+
+xgb_model.fit(X_train, y_train_mapped)
+
+y_pred_xgb = xgb_model.predict(X_test)
+reverse_mapping = {v: k for k, v in class_mapping.items()}
+y_test_original = y_test_mapped.replace(reverse_mapping)
+y_pred_original = pd.Series(y_pred_xgb).replace(reverse_mapping)
+
+st.write("**Classification Report:**")
+st.write(pd.DataFrame(classification_report(y_test_original, y_pred_original, output_dict=True)).transpose())
+st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test_original, y_pred_original):.3f}")
+st.write(f"**Test Set Accuracy:** {xgb_model.score(X_test, y_test_mapped):.3f}")
+
+# Log Loss
+y_proba_xgb = xgb_model.predict_proba(X_test)
+try:
+    st.write(f"**Log Loss:** {log_loss(y_test_mapped, y_proba_xgb):.3f}")
+except ValueError:
+    st.write("⚠️ Log Loss not available: single class in y_test.")
+
+# Brier Score
+brier_scores_xgb = []
+for i in range(y_proba_xgb.shape[1]):
+    mask = (y_test_mapped == i)
+    if mask.sum() > 0:
+        brier_scores_xgb.append(brier_score_loss(mask, y_proba_xgb[:, i]))
+st.write(f"**Brier Score:** {np.mean(brier_scores_xgb):.3f}")
+
+# Confusion matrix
+st.subheader("Confusion Matrix (XGBoost)")
+fig, ax = plt.subplots(figsize=(6,6))
+sns.heatmap(confusion_matrix(y_test_original, y_pred_original), annot=True, cmap="Blues", fmt="d",
+            xticklabels=sorted(y_test_original.unique()), yticklabels=sorted(y_test_original.unique()))
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+st.pyplot(fig)
 
 ## Quality category classification
 
@@ -234,7 +277,6 @@ sns.heatmap(confusion_matrix(y_test_str, y_pred_str), annot=True, cmap="Blues", 
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 st.pyplot(fig)
-
 
 
 ## Fixed acidity classification
@@ -330,5 +372,3 @@ selected_features = st.multiselect("Select up to 4 features for visualization", 
 if selected_features:
     pairplot_fig = sns.pairplot(df, vars=selected_features, hue='cluster', palette='viridis')
     st.pyplot(pairplot_fig)
-
-### use xgboost
