@@ -232,7 +232,7 @@ st.write(f"**R² Score:** {r2_value:.3f} (not very meaningful for classification
 
 ### XGBoost Classifier
 st.markdown("---")
-st.subheader("XGBoost Classifier - Quality)")
+st.subheader("XGBoost Classifier - Quality")
 
 X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1),
                                                     df['quality'],
