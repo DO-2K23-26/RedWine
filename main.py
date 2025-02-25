@@ -143,8 +143,6 @@ X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality
 scaler = StandardScaler()
 X_train_scaled = scaler.fit_transform(X_train)
 X_test_scaled = scaler.transform(X_test)
-print(f"Shape of X_test_scaled: {X_test_scaled.shape}")
-print(f"Shape of X_test: {X_test.shape}")
 
 log_reg = LogisticRegression(
     multi_class="multinomial",
@@ -168,7 +166,6 @@ ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 st.pyplot(fig)
 
-report = classification_report(y_test, y_pred, target_names=["Bad","Average","Good"])
 st.write(pd.DataFrame(classification_report(y_test, y_pred, target_names=["Bad","Average","Good"], output_dict=True)).transpose())
 
 
@@ -299,7 +296,7 @@ y_test_str = y_test.replace(quality_labels)
 y_pred_str = pd.Series(y_pred_rf).replace(quality_labels)
 
 st.write("**Classification Report:**")
-st.write(pd.DataFrame(classification_report(y_test_str, y_pred_str, output_dict=True)).transpose())
+st.write(pd.DataFrame(classification_report(y_test_str, y_pred_str, output_dict=True, zero_division=1)).transpose())
 st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred_rf):.3f}")
 st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
 
