@@ -5,8 +5,9 @@ import seaborn as sns
 import streamlit as st
 from sklearn.cluster import KMeans
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import classification_report, confusion_matrix, balanced_accuracy_score, brier_score_loss, \
-    log_loss
+    log_loss, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from xgboost import XGBClassifier
@@ -133,56 +134,109 @@ st.pyplot(fig)
 
 ## Machine learning
 st.markdown("---")
-st.subheader("🤖 Machine Learning - Random Forest Models")
+st.subheader("🤖 Machine Learning")
+st.subheader("Logistic Regression - Quality Category")
 
 # Quality classification
-X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1), df['quality'],
+X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1), df['quality_cat'],
                                                     test_size=0.2, random_state=42, stratify=df['quality'])
-y_train = y_train.replace({3: 4})
-y_test = y_test.replace({3: 4})
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+print(f"Shape of X_test_scaled: {X_test_scaled.shape}")
+print(f"Shape of X_test: {X_test.shape}")
 
-# print(pd.Series(y_train).value_counts())
+log_reg = LogisticRegression(
+    multi_class="multinomial",
+    max_iter=1000,
+    random_state=42,
+    class_weight='balanced'
+)
 
-rf_model = RandomForestClassifier(n_estimators=500, max_depth=20, min_samples_split=3, min_samples_leaf=1,
-                                  class_weight='balanced', random_state=42)
+log_reg.fit(X_train_scaled, y_train)
 
-rf_model.fit(X_train, y_train)
+st.subheader("Classification Report & Confusion Matrix")
 
-# Model performance
-y_pred_rf = rf_model.predict(X_test)
-y_test_str = y_test.replace(quality_labels)
-y_pred_str = pd.Series(y_pred_rf).replace(quality_labels)
-
-st.subheader("📊 Random Forest - Quality")
-st.write("**Classification Report:**")
-st.write(pd.DataFrame(classification_report(y_test_str, y_pred_str, output_dict=True)).transpose())
-st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred_rf):.3f}")
-st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
-
-# Log Loss
-y_proba = rf_model.predict_proba(X_test)
-try:
-    st.write(f"**Log Loss:** {log_loss(y_test, y_proba):.3f}")
-except ValueError:
-    st.write("⚠️ Log Loss not available: single class in y_test.")
-
-# Brier Score
-brier_scores = []
-for i in range(y_proba.shape[1]):
-    mask = (y_test == i)
-    if mask.sum() > 0:
-        brier_scores.append(brier_score_loss(mask, y_proba[:, i]))
-st.write(f"**Brier Score:** {np.mean(brier_scores):.3f}")
-
-# Confusion matrix
-st.subheader("Confusion Matrix")
-fig, ax = plt.subplots(figsize=(6,6))
-sns.heatmap(confusion_matrix(y_test, y_pred_rf), annot=True, cmap="Blues", fmt="d", xticklabels=sorted(y_test.unique()), yticklabels=sorted(y_test.unique()))
+y_pred = log_reg.predict(X_test_scaled)
+cm = confusion_matrix(y_test, y_pred)
+fig, ax = plt.subplots(figsize=(5,4))
+sns.heatmap(cm, annot=True, fmt="d",
+            xticklabels=["Bad","Average","Good"],
+            yticklabels=["Bad","Average","Good"],
+            cmap="Blues", ax=ax)
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 st.pyplot(fig)
 
+report = classification_report(y_test, y_pred, target_names=["Bad","Average","Good"])
+st.write(pd.DataFrame(classification_report(y_test, y_pred, target_names=["Bad","Average","Good"], output_dict=True)).transpose())
+
+
+st.subheader("Feature Importance (Coefficients) for Class='Good'")
+
+class_index = 2 # index of good in the dictionnary
+coeffs_good = pd.Series(
+    log_reg.coef_[class_index],
+    index=X_train.columns
+).sort_values()
+
+fig, ax = plt.subplots(figsize=(10, 6))
+coeffs_good.plot(kind="bar", color="blue", alpha=0.7, ax=ax)
+ax.set_title("Logistic Regression Coefficients (Class='Good')")
+ax.set_xlabel("Features")
+ax.set_ylabel("Coefficient Value")
+ax.axhline(0, color="black", linewidth=1)
+st.pyplot(fig)
+
+st.write("""
+**Interpretation**:
+- Positive coefficients → Increase probability of 'Good' wines.
+- Negative coefficients → Decrease probability of 'Good' wines.
+- Close to zero → Little effect on classification.
+""")
+
+st.subheader("Boxplot of Predicted Probabilities for 'Good' Wines")
+
+y_proba = log_reg.predict_proba(X_test_scaled)
+class_names = log_reg.classes_
+good_index = np.where(class_names == 1)[0][0]
+
+df_proba = pd.DataFrame({
+    "Prob_Good": y_proba[:, good_index],
+    "True_Class": y_test.replace(quality_labels)
+})
+
+fig, ax = plt.subplots(figsize=(8, 5))
+sns.boxplot(x="True_Class", y="Prob_Good", data=df_proba, palette="coolwarm", ax=ax)
+ax.set_title("Predicted Probability for 'Good' by True Class")
+ax.set_xlabel("True Class")
+ax.set_ylabel("Probability of 'Good'")
+st.pyplot(fig)
+
+st.write("""
+**Interpretation**:
+- Ideally, *Bad* → prob(Good) basse, *Good* → prob(Good) élevée.
+- If there's a large overlap, the model confuses classes.
+""")
+
+st.subheader("Logistic Regression Model Performance")
+
+try:
+    ll_value = log_loss(y_test, y_proba)
+    st.write(f"**Log Loss:** {ll_value:.3f} (Lower is better)")
+except ValueError:
+    st.write("⚠️ Log Loss not available (single class in test?).")
+
+bal_acc = balanced_accuracy_score(y_test, y_pred)
+st.write(f"**Balanced Accuracy:** {bal_acc:.3f} (average recall across classes, better for class imbalance.)")
+
+r2_value = r2_score(y_test, y_pred)
+st.write(f"**R² Score:** {r2_value:.3f} (not very meaningful for classification)")
+
 ### XGBoost Classifier
+st.markdown("---")
+st.subheader("XGBoost Classifier - Quality)")
+
 X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1),
                                                     df['quality'],
                                                     test_size=0.2, random_state=42, stratify=df['quality'])
@@ -190,9 +244,6 @@ X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality
 class_mapping = {4: 0, 5: 1, 6: 2, 7: 3, 8: 4}
 y_train_mapped = y_train.replace(class_mapping)
 y_test_mapped = y_test.replace(class_mapping)
-
-st.markdown("---")
-st.subheader("🚀 XGBoost Classifier (Quality Prediction)")
 
 xgb_model = XGBClassifier(n_estimators=500, max_depth=4, learning_rate=0.2,
                           objective="multi:softmax", num_class=len(class_mapping), random_state=42)
@@ -229,6 +280,48 @@ st.subheader("Confusion Matrix (XGBoost)")
 fig, ax = plt.subplots(figsize=(6,6))
 sns.heatmap(confusion_matrix(y_test_original, y_pred_original), annot=True, cmap="Blues", fmt="d",
             xticklabels=sorted(y_test_original.unique()), yticklabels=sorted(y_test_original.unique()))
+ax.set_xlabel("Predicted")
+ax.set_ylabel("Actual")
+st.pyplot(fig)
+
+st.subheader("📊 Random Forest - Quality")
+X_train, X_test, y_train, y_test = train_test_split(df.drop(['quality', 'quality_cat'], axis=1), df['quality'],
+                                                    test_size=0.2, random_state=42, stratify=df['quality'])
+
+rf_model = RandomForestClassifier(n_estimators=500, max_depth=20, min_samples_split=3, min_samples_leaf=1,
+                                  class_weight='balanced', random_state=42)
+
+rf_model.fit(X_train, y_train)
+
+# Model performance
+y_pred_rf = rf_model.predict(X_test)
+y_test_str = y_test.replace(quality_labels)
+y_pred_str = pd.Series(y_pred_rf).replace(quality_labels)
+
+st.write("**Classification Report:**")
+st.write(pd.DataFrame(classification_report(y_test_str, y_pred_str, output_dict=True)).transpose())
+st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred_rf):.3f}")
+st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
+
+# Log Loss
+y_proba = rf_model.predict_proba(X_test)
+try:
+    st.write(f"**Log Loss:** {log_loss(y_test, y_proba):.3f}")
+except ValueError:
+    st.write("⚠️ Log Loss not available: single class in y_test.")
+
+# Brier Score
+brier_scores = []
+for i in range(y_proba.shape[1]):
+    mask = (y_test == i)
+    if mask.sum() > 0:
+        brier_scores.append(brier_score_loss(mask, y_proba[:, i]))
+st.write(f"**Brier Score:** {np.mean(brier_scores):.3f} (mean squared error of predicted probabilities vs actual outcome (lower=better).")
+
+# Confusion matrix
+st.subheader("Confusion Matrix")
+fig, ax = plt.subplots(figsize=(6,6))
+sns.heatmap(confusion_matrix(y_test, y_pred_rf), annot=True, cmap="Blues", fmt="d", xticklabels=sorted(y_test.unique()), yticklabels=sorted(y_test.unique()))
 ax.set_xlabel("Predicted")
 ax.set_ylabel("Actual")
 st.pyplot(fig)
