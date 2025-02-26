@@ -376,6 +376,16 @@ st.write(
     Except for the Brier Score which is lightly higher than the quality model, because the model has to predict only 3 classes, which makes the error higher.
     """
 )
+
+feature_importances = pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending=False)
+fig, ax = plt.subplots(figsize=(10, 6))
+feature_importances.plot(kind="bar", color="blue", alpha=0.7, ax=ax)
+ax.set_title("Feature Importance in Random Forest - quality_cat")
+ax.set_xlabel("Features")
+ax.set_ylabel("Importance Score")
+st.pyplot(fig)
+
+
 st.divider()
 
 st.subheader("📊 Random Forest - Fixed Acidity")
@@ -447,6 +457,14 @@ st.write(
     The score are globally really good, probably because the fixed acidity is correlates with many other features.
     """
 )
+
+feature_importances = pd.Series(rf_model.feature_importances_, index=X_train.columns).sort_values(ascending=False)
+fig, ax = plt.subplots(figsize=(10, 6))
+feature_importances.plot(kind="bar", color="blue", alpha=0.7, ax=ax)
+ax.set_title("Feature Importance in Random Forest - fixed acidity")
+ax.set_xlabel("Features")
+ax.set_ylabel("Importance Score")
+st.pyplot(fig)
 
 st.divider()
 
