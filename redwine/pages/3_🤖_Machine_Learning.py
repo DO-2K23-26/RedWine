@@ -29,13 +29,17 @@ st.set_page_config(
 st.title("Machine Learning")
 
 # Sidebar
-# st.sidebar.header("Machine Learning Models")
-# st.sidebar.markdown("[Random Forest - Quality](#3487a5e8)")
-# st.sidebar.markdown("[XGBoost Classifier (Quality Prediction)](#459af758)")
-# st.sidebar.markdown("[Random Forest - Quality Category](#a3754331)")
-# st.sidebar.markdown("[Random Forest - Fixed Acidity](#c0649ab6)")
-# st.sidebar.markdown("[Clustering with KMeans](#clustering-with-kmeans)")
-
+st.sidebar.title("Navigation")
+st.sidebar.header("Models")
+st.sidebar.markdown(
+    "- [Logistic Regression - Quality Category](#logistic-regression-quality-category)"
+)
+st.sidebar.markdown("- [XGBoost Classifier - Quality](#xgboost-classifier-quality)")
+st.sidebar.markdown("- [Random Forest - Quality](#3487a5e8)")
+st.sidebar.markdown("- [Random Forest - Quality Category](#a3754331)")
+st.sidebar.markdown("- [Random Forest - Fixed Acidity](#c0649ab6)")
+st.sidebar.header("Clustering")
+st.sidebar.markdown("- [Clustering with KMeans](#clustering-with-kmeans)")
 
 # Quality classification
 st.subheader("Logistic Regression - Quality Category")
