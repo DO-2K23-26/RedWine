@@ -384,6 +384,7 @@ ax.set_title("Feature Importance in Random Forest - quality_cat")
 ax.set_xlabel("Features")
 ax.set_ylabel("Importance Score")
 st.pyplot(fig)
+st.write("We can see that the alcohol is the most important feature for the quality category, and the less important is the fixed acidity category and free sulfur dioxide, it has a really neutral importance.")
 
 
 st.divider()
@@ -465,6 +466,7 @@ ax.set_title("Feature Importance in Random Forest - fixed acidity")
 ax.set_xlabel("Features")
 ax.set_ylabel("Importance Score")
 st.pyplot(fig)
+st.write("We can see that citric acid is the most important feature for the fixed acidity, and the less important is the quality, it has a really neutral importance.")
 
 st.divider()
 
