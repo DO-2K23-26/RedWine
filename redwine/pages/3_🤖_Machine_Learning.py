@@ -192,6 +192,38 @@ with col5:
             classification_report(y_test_original, y_pred_original, output_dict=True)
         ).transpose()
     )
+    st.write(
+        f"**Balanced Accuracy:** {balanced_accuracy_score(y_test_original, y_pred_original):.3f}"
+    )
+    st.write(f"**Test Set Accuracy:** {xgb_model.score(X_test, y_test_mapped):.3f}")
+
+    # Log Loss
+    y_proba_xgb = xgb_model.predict_proba(X_test)
+    try:
+        st.write(f"**Log Loss:** {log_loss(y_test_mapped, y_proba_xgb):.3f}")
+    except ValueError:
+        st.write("⚠️ Log Loss not available: single class in y_test.")
+
+    # Brier Score
+    brier_scores_xgb = []
+    for i in range(y_proba_xgb.shape[1]):
+        mask = y_test_mapped == i
+        if mask.sum() > 0:
+            brier_scores_xgb.append(brier_score_loss(mask, y_proba_xgb[:, i]))
+    st.write(f"**Brier Score:** {np.mean(brier_scores_xgb):.3f}")
+    st.divider()
+    st.write("**Result Interpretation:**")
+    st.write(
+        """
+        The classification report shows the main classification metrics for each class.
+        - 4.0: Bad classification, there is not enough data to predict this class.
+        - 5.0 to 7.0: Good classification, the model is able to predict this class.
+        - 8.0: Bad classification, there is not enough data to predict this class.
+
+        Overall, the model performs well with a balanced accuracy of 0.44 and a test set accuracy of 0.64. 
+        But it works better with classes with more data (5.0 to 7.0).
+        """
+    )
 with col6:
     fig, ax = plt.subplots(figsize=(6, 6))
     sns.heatmap(
@@ -205,26 +237,6 @@ with col6:
     ax.set_xlabel("Predicted")
     ax.set_ylabel("Actual")
     st.pyplot(fig)
-
-st.write(
-    f"**Balanced Accuracy:** {balanced_accuracy_score(y_test_original, y_pred_original):.3f}"
-)
-st.write(f"**Test Set Accuracy:** {xgb_model.score(X_test, y_test_mapped):.3f}")
-
-# Log Loss
-y_proba_xgb = xgb_model.predict_proba(X_test)
-try:
-    st.write(f"**Log Loss:** {log_loss(y_test_mapped, y_proba_xgb):.3f}")
-except ValueError:
-    st.write("⚠️ Log Loss not available: single class in y_test.")
-
-# Brier Score
-brier_scores_xgb = []
-for i in range(y_proba_xgb.shape[1]):
-    mask = y_test_mapped == i
-    if mask.sum() > 0:
-        brier_scores_xgb.append(brier_score_loss(mask, y_proba_xgb[:, i]))
-st.write(f"**Brier Score:** {np.mean(brier_scores_xgb):.3f}")
 
 st.divider()
 
@@ -449,15 +461,15 @@ ax.plot(k_values, inertia, marker="o")
 ax.set_xlabel("Number of Clusters")
 ax.set_ylabel("Inertia")
 ax.set_title("Elbow Method for Optimal K")
-st.pyplot(fig)
-st.write("The optimal number of clusters is hard to see, we will choose k=5")
+col10, col11 = st.columns(2)
+with col10:
+    st.subheader("Elbow Method")
+    st.pyplot(fig)
+    st.write("The optimal number of clusters is hard to see, we will choose k=5")
 
 # Apply K-Means with an optimal number of clusters (e.g., k=5)
 kmeans = KMeans(n_clusters=5, random_state=42, n_init=10)
 df["cluster"] = kmeans.fit_predict(X_scaled)
-
-# Scatter plot of first two principal components
-st.subheader("Cluster Visualization (Alcool & Quality)")
 fig, ax = plt.subplots()
 sns.scatterplot(
     x=df.iloc[:, 10], y=df.iloc[:, 11], hue=df["cluster"], palette="viridis", ax=ax
@@ -465,7 +477,11 @@ sns.scatterplot(
 ax.set_xlabel(df.columns[10])
 ax.set_ylabel(df.columns[11])
 ax.set_title("Clusters based on 11th and 12th Features")
-st.pyplot(fig)
+
+# Scatter plot of first two principal components
+with col11:
+    st.subheader("Cluster Visualization (Alcool & Quality)")
+    st.pyplot(fig)
 
 # Pairplot of clustered data
 st.subheader("Pairplot of Clustered Data")
