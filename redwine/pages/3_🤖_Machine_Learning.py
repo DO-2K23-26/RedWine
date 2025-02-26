@@ -87,6 +87,10 @@ with col2:
     ax.set_ylabel("Actual")
     st.pyplot(fig)
 
+st.write("We can see on the confusion matrix, that there is clear diagonal, which means the model predicts most of the time the right class. Except for average quality, which is often predicted as bad quality and good quality.")
+st.write("On the classification report, we can see that for the average the precision is average and the recall is low, which means that the model has a hard time to predict the average quality, and has 60% chance to miss it. For the good quality, the recall is 0.79 which is high, but the precision is really low, which means that the model has a hard time to predict the good quality, and has 0.5 chance to predict it right.")
+st.write("The accuracy of the model is 0.59 which is not really good, and means that the model has a hard time to predict the quality of the wine.")
+
 st.subheader("Feature Importance (Coefficients) for Class='Good'")
 
 class_index = 2  # index of good in the dictionnary
@@ -100,14 +104,7 @@ ax.set_ylabel("Coefficient Value")
 ax.axhline(0, color="black", linewidth=1)
 st.pyplot(fig)
 
-st.write(
-    """
-**Interpretation**:
-- Positive coefficients → Increase probability of 'Good' wines.
-- Negative coefficients → Decrease probability of 'Good' wines.
-- Close to zero → Little effect on classification.
-"""
-)
+st.write("About feature importance, we can see that the most important feature for the good quality is the alcohol, then it is the fixed acidity. Ph and Acid are not really important for the good quality. Total sulfur dioxide, if high, lower the quality of the wine, and volatile acidity too.")
 
 st.subheader("Boxplot of Predicted Probabilities for 'Good' Wines")
 
@@ -126,13 +123,7 @@ ax.set_xlabel("True Class")
 ax.set_ylabel("Probability of 'Good'")
 st.pyplot(fig)
 
-st.write(
-    """
-**Interpretation**:
-- Ideally, *Bad* → prob(Good) basse, *Good* → prob(Good) élevée.
-- If there's a large overlap, the model confuses classes.
-"""
-)
+st.write("The boxplot of the predicted probabilities for good wines is quite high for good wines which means the model predicts well the good wines, but the boxplot for the average wine is quite high too, which means it predicts often the average wines as good wines. But the boxplot for the bad wines is quite low, which means it does not predict often the bad wines as good wines.")
 
 st.subheader("Logistic Regression Model Performance")
 col3, col4 = st.columns(2)
@@ -140,17 +131,15 @@ with col3:
     try:
         ll_value = log_loss(y_test, y_proba)
         st.write(f"**Log Loss:** {ll_value:.3f} (Lower is better)")
+        st.write("Log loss is not really low, but still below 1, which means the model's predictions diverges quite a bit from the true values.")
     except ValueError:
         st.write("⚠️ Log Loss not available (single class in test?).")
+with col4:
     bal_acc = balanced_accuracy_score(y_test, y_pred)
     st.write(
         f"**Balanced Accuracy:** {bal_acc:.3f} (average recall across classes, better for class imbalance.)"
     )
-with col4:
-    r2_value = r2_score(y_test, y_pred)
-    st.write(f"**R² Score:** {r2_value:.3f} (not very meaningful for classification)")
-
-st.divider()
+    st.write("The balanced accuracy is a bit above 0.6 which is not really good, but still better than random guessing.")
 
 # XGBoost Classifier
 st.subheader("XGBoost Classifier - Quality")
@@ -272,10 +261,12 @@ with col7:
     st.write(
         pd.DataFrame(
             classification_report(
-                y_test_str, y_pred_str, output_dict=True, zero_division=1
+                y_test_str, y_pred_str, output_dict=True, zero_division=0
             )
         ).transpose()
     )
+    st.write("The precision for 3 and 4 is 0, which means that the model has not predict any 3 or 4 even if they exist in the dataset.")
+    st.write("The 7 has a highest precision which means that the model has a good prediction for the 7. But the recall is low which means that the model has not predicted all the 7.")
 with col8:
     fig, ax = plt.subplots(figsize=(6, 6))
     sns.heatmap(
@@ -291,7 +282,6 @@ with col8:
     st.pyplot(fig)
 
 st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred_rf):.3f}")
-st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
 
 # Log Loss
 y_proba = rf_model.predict_proba(X_test)
@@ -359,7 +349,6 @@ with col10:
     st.pyplot(fig)
 
 st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred):.3f}")
-st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
 
 # Log Loss
 y_proba = rf_model.predict_proba(X_test)
@@ -425,7 +414,6 @@ with col12:
     st.pyplot(fig)
 
 st.write(f"**Balanced Accuracy:** {balanced_accuracy_score(y_test, y_pred):.3f}")
-st.write(f"**Test Set Accuracy:** {rf_model.score(X_test, y_test):.3f}")
 y_proba = rf_model.predict_proba(X_test)
 
 # Log Loss
