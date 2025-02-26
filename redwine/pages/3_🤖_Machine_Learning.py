@@ -364,7 +364,14 @@ for i in range(y_proba.shape[1]):
     if mask.sum() > 0:
         brier_scores.append(brier_score_loss(mask, y_proba[:, i]))
 st.write(f"**Brier Score:** {np.mean(brier_scores):.3f}")
-
+st.write("**Result Interpretation:**")
+st.write(
+    """
+    The classification report and scores are much better than for the random forest quality model. 
+    This is explained by the fact that the model has to predict only 3 classes instead of 6. The data is higher for the 3 classes, which makes the model more accurate.
+    Except for the Brier Score which is lightly higher than the quality model, because the model has to predict only 3 classes, which makes the error higher.
+    """
+)
 st.divider()
 
 st.subheader("📊 Random Forest - Fixed Acidity")
@@ -429,6 +436,13 @@ for i in range(y_proba.shape[1]):
     if mask.sum() > 0:
         brier_scores.append(brier_score_loss(mask, y_proba[:, i]))
 st.write(f"**Brier Score:** {np.mean(brier_scores):.3f}")
+st.write("**Result Interpretation:**")
+st.write(
+    """
+    We chose to make a random forest with the fixed acidity category, because in the correlation matrix, the fixed acidity had high correlations with the other features.
+    The score are globally really good, probably because the fixed acidity is correlates with many other features.
+    """
+)
 
 st.divider()
 
